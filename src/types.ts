@@ -9,18 +9,19 @@ export interface Tube {
   segments: Color[]
 }
 
-export type Difficulty = 'easy' | 'medium' | 'hard'
+export type Difficulty = 'puppy' | 'woof' | 'fetch' | 'bark' | 'beast'
 
-export interface Level {
+export interface DifficultyConfig {
+  id: Difficulty
   label: string
+  icon: string
+  desc: string
   colorCount: number
-  tubeCount: number   // colorCount + 2 empty
-  segmentsPerTube: 4
 }
 
 export interface GameState {
   tubes: Tube[]
-  selected: number | null  // tube id
+  selected: number | null
   moves: number
   won: boolean
   difficulty: Difficulty

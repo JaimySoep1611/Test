@@ -1,18 +1,16 @@
 import { useCallback, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { Difficulty } from './types'
+import { DIFFICULTY_CONFIGS, starsForMoves } from './gameLogic'
 import GameBoard from './components/GameBoard'
 
 type Screen = 'menu' | 'game' | 'win'
 
-const DIFFICULTIES: { id: Difficulty; label: string; desc: string }[] = [
-  { id: 'easy',   label: 'Easy',   desc: '4 colors · 6 tubes' },
-  { id: 'medium', label: 'Medium', desc: '6 colors · 8 tubes' },
-  { id: 'hard',   label: 'Hard',   desc: '9 colors · 11 tubes' },
-]
+const BG_DOGS = ['🐶', '🐕', '🦮', '🐩', '🐾', '🦴', '🐕‍🦺', '🐶', '🐾', '🦴']
 
 export default function App() {
   const [screen, setScreen]     = useState<Screen>('menu')
-  const [diff, setDiff]         = useState<Difficulty>('easy')
+  const [diff, setDiff]         = useState<Difficulty>('woof')
   const [winMoves, setWinMoves] = useState(0)
 
   const handleWin = useCallback((moves: number) => {
@@ -27,9 +25,9 @@ export default function App() {
 
   return (
     <div style={{
-      width: '100vw',
-      height: '100dvh',
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+      width: '100%',
+      height: '100%',
+      background: 'linear-gradient(160deg,#0d1b2a 0%,#1a1f3a 50%,#0f1e35 100%)',
       color: '#fff',
       display: 'flex',
       flexDirection: 'column',
@@ -39,157 +37,245 @@ export default function App() {
       overflow: 'hidden',
     }}>
       {/* Ambient orbs */}
-      <div style={orb(20, 10, '#9b59b6', 300)} />
-      <div style={orb(70, 80, '#0984e3', 250)} />
-      <div style={orb(85, 15, '#00cec9', 200)} />
+      <Orb left="8%"  top="12%" color="#7c3aed" size={360} />
+      <Orb left="80%" top="75%" color="#1d4ed8" size={300} />
+      <Orb left="88%" top="8%"  color="#0891b2" size={240} />
+      <Orb left="5%"  top="82%" color="#9333ea" size={220} />
 
-      {screen === 'menu' && (
-        <Menu onStart={startGame} />
-      )}
+      {/* Floating background dogs (menu only) */}
+      {screen === 'menu' && BG_DOGS.map((dog, i) => (
+        <div
+          key={i}
+          className="float-dog"
+          style={{
+            position: 'absolute',
+            fontSize: 28 + (i % 4) * 10,
+            left: `${(i * 97 + 7) % 88 + 4}%`,
+            top:  `${(i * 71 + 11) % 82 + 4}%`,
+            opacity: 0.05 + (i % 3) * 0.025,
+            animationDelay: `${i * 0.35}s`,
+            animationDuration: `${2.8 + (i % 3) * 0.6}s`,
+            pointerEvents: 'none',
+          }}
+        >
+          {dog}
+        </div>
+      ))}
+
+      {screen === 'menu' && <Menu onStart={startGame} />}
 
       {screen === 'game' && (
-        <GameBoard
-          difficulty={diff}
-          onWin={handleWin}
-          onBack={() => setScreen('menu')}
-        />
+        <GameBoard difficulty={diff} onWin={handleWin} onBack={() => setScreen('menu')} />
       )}
 
       {screen === 'win' && (
         <WinScreen
           moves={winMoves}
           difficulty={diff}
-          onReplay={() => setScreen('game')}
+          onReplay={() => startGame(diff)}
           onMenu={() => setScreen('menu')}
+          onNext={() => {
+            const idx  = DIFFICULTY_CONFIGS.findIndex(d => d.id === diff)
+            const next = DIFFICULTY_CONFIGS[Math.min(idx + 1, DIFFICULTY_CONFIGS.length - 1)]
+            startGame(next.id)
+          }}
+          isLast={DIFFICULTY_CONFIGS[DIFFICULTY_CONFIGS.length - 1].id === diff}
         />
       )}
     </div>
   )
 }
 
+// ─── Menu ────────────────────────────────────────────────────────────────────
+
 function Menu({ onStart }: { onStart: (d: Difficulty) => void }) {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 32,
-      zIndex: 1,
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          fontSize: 56,
-          fontWeight: 800,
-          background: 'linear-gradient(135deg,#fff 0%,#74b9ff 50%,#a29bfe 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          letterSpacing: -1,
-          lineHeight: 1,
-        }}>
-          Magic Sort
-        </div>
-        <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 16, marginTop: 8, letterSpacing: 2 }}>
-          SORT · POUR · SOLVE
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: 300 }}>
-        {DIFFICULTIES.map(d => (
-          <button
-            key={d.id}
-            onClick={() => onStart(d.id)}
-            style={{
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 16,
-              padding: '18px 24px',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: 17,
-              fontWeight: 600,
-              backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <span>{d.label}</span>
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: 400 }}>
-              {d.desc}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 13, marginTop: 8 }}>
-        Sort all tubes by color to win
-      </div>
-    </div>
-  )
-}
-
-function WinScreen({
-  moves, difficulty, onReplay, onMenu,
-}: {
-  moves: number
-  difficulty: Difficulty
-  onReplay: () => void
-  onMenu: () => void
-}) {
-  return (
-    <div style={{
+    <div className="slide-up" style={{
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       gap: 28,
       zIndex: 1,
-      textAlign: 'center',
+      width: '100%',
+      maxWidth: 420,
+      padding: '0 24px',
     }}>
-      <div style={{ fontSize: 72, lineHeight: 1 }}>🎉</div>
-      <div>
-        <div style={{ fontSize: 42, fontWeight: 800, letterSpacing: -1 }}>You Won!</div>
-        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, marginTop: 8 }}>
-          {difficulty.toUpperCase()} · {moves} moves
+      {/* Logo */}
+      <div style={{ textAlign: 'center' }}>
+        <div className="glow-pulse" style={{ fontSize: 76, lineHeight: 1, marginBottom: 10 }}>
+          🐕
         </div>
+        <h1 style={{
+          fontSize: 50,
+          fontWeight: 900,
+          background: 'linear-gradient(135deg,#e0c3fc 0%,#8ec5fc 50%,#a1c4fd 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          letterSpacing: -2,
+          lineHeight: 1,
+          margin: 0,
+        }}>
+          Magic Sort
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 6, letterSpacing: 3, textTransform: 'uppercase' }}>
+          Sort · Pour · Solve
+        </p>
       </div>
-      <div style={{ display: 'flex', gap: 14 }}>
-        <button onClick={onReplay} style={actionBtn('primary')}>Play Again</button>
+
+      {/* Difficulty cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
+        {DIFFICULTY_CONFIGS.map((d, i) => (
+          <button
+            key={d.id}
+            onClick={() => onStart(d.id)}
+            style={{
+              background: 'rgba(255,255,255,0.055)',
+              border: '1px solid rgba(255,255,255,0.11)',
+              borderRadius: 16,
+              padding: '13px 18px',
+              color: '#fff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              fontSize: 16,
+              fontWeight: 600,
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              textAlign: 'left',
+              width: '100%',
+              animationDelay: `${i * 0.06}s`,
+            }}
+          >
+            <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{d.icon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ lineHeight: 1.2 }}>{d.label}</div>
+              <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
+                {d.desc}
+              </div>
+            </div>
+            <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 20, fontWeight: 300 }}>›</span>
+          </button>
+        ))}
+      </div>
+
+      <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: 12, letterSpacing: 0.5 }}>
+        Sort all tubes by color to win 🐾
+      </p>
+    </div>
+  )
+}
+
+// ─── Win screen ───────────────────────────────────────────────────────────────
+
+const WIN_DOGS = ['🐶', '🎉', '🐕', '🎊', '🦮', '🎈', '🐾']
+
+function WinScreen({ moves, difficulty, onReplay, onMenu, onNext, isLast }: {
+  moves: number
+  difficulty: Difficulty
+  onReplay: () => void
+  onMenu: () => void
+  onNext: () => void
+  isLast: boolean
+}) {
+  const config = DIFFICULTY_CONFIGS.find(d => d.id === difficulty)!
+  const stars  = starsForMoves(moves, config.colorCount)
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 24,
+      zIndex: 1,
+      textAlign: 'center',
+      padding: '0 28px',
+    }}>
+      {/* Celebration row */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {WIN_DOGS.map((e, i) => (
+          <span
+            key={i}
+            className="celebrate"
+            style={{ display: 'inline-block', fontSize: 40, animationDelay: `${i * 0.08}s` }}
+          >
+            {e}
+          </span>
+        ))}
+      </div>
+
+      <div>
+        <h2 style={{ fontSize: 42, fontWeight: 900, letterSpacing: -1.5, margin: 0 }}>
+          Paw-some! {config.icon}
+        </h2>
+        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 6 }}>
+          {config.label} · {moves} moves
+        </p>
+      </div>
+
+      {/* Stars */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <span
+            key={i}
+            className={i < stars ? 'star-pop' : ''}
+            style={{
+              display: 'inline-block',
+              fontSize: 40,
+              opacity: i < stars ? 1 : 0.18,
+              animationDelay: `${0.4 + i * 0.12}s`,
+            }}
+          >
+            ⭐
+          </span>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {!isLast && (
+          <button onClick={onNext} style={actionBtn('primary')}>Next Level →</button>
+        )}
+        <button onClick={onReplay} style={actionBtn('ghost')}>Replay</button>
         <button onClick={onMenu}   style={actionBtn('ghost')}>Menu</button>
       </div>
     </div>
   )
 }
 
-function actionBtn(variant: 'primary' | 'ghost'): React.CSSProperties {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function Orb({ left, top, color, size }: { left: string; top: string; color: string; size: number }) {
+  const style: CSSProperties = {
+    position: 'absolute',
+    left,
+    top,
+    width: size,
+    height: size,
+    borderRadius: '50%',
+    background: color,
+    opacity: 0.13,
+    filter: `blur(${Math.floor(size * 0.65)}px)`,
+    pointerEvents: 'none',
+    transform: 'translate(-50%,-50%)',
+  }
+  return <div style={style} />
+}
+
+function actionBtn(variant: 'primary' | 'ghost'): CSSProperties {
   return {
     background: variant === 'primary'
-      ? 'linear-gradient(135deg,#74b9ff,#a29bfe)'
+      ? 'linear-gradient(135deg,#7c3aed,#2563eb)'
       : 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.2)',
+    border: `1px solid ${variant === 'primary' ? 'transparent' : 'rgba(255,255,255,0.18)'}`,
     borderRadius: 14,
     padding: '14px 28px',
     color: '#fff',
     fontSize: 16,
     fontWeight: 700,
     cursor: 'pointer',
-    letterSpacing: 0.5,
-  }
-}
-
-function orb(left: number, top: number, color: string, size: number): React.CSSProperties {
-  return {
-    position: 'absolute',
-    left: `${left}%`,
-    top: `${top}%`,
-    width: size,
-    height: size,
-    borderRadius: '50%',
-    background: color,
-    opacity: 0.08,
-    filter: `blur(${size / 2}px)`,
-    pointerEvents: 'none',
+    letterSpacing: 0.3,
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
   }
 }

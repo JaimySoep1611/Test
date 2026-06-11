@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { Difficulty, GameState } from '../types'
-import { canPour, createGame, pour, topOf } from '../gameLogic'
+import { canPour, createGame, DIFFICULTY_CONFIGS, pour } from '../gameLogic'
 import TubeComponent from './Tube'
 
-const TUBE_ASPECT = 3.2   // height / width
+const TUBE_ASPECT = 3.6
 
 function useDimensions() {
   const [dims, setDims] = useState({ w: window.innerWidth, h: window.innerHeight })
   useEffect(() => {
     const handler = () => setDims({ w: window.innerWidth, h: window.innerHeight })
     window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
+    window.addEventListener('orientationchange', handler)
+    return () => {
+      window.removeEventListener('resize', handler)
+      window.removeEventListener('orientationchange', handler)
+    }
   }, [])
   return dims
 }
@@ -24,42 +29,29 @@ interface Props {
 export default function GameBoard({ difficulty, onWin, onBack }: Props) {
   const [game, setGame] = useState<GameState>(() => createGame(difficulty))
   const { w, h } = useDimensions()
-
   const prevWon = useRef(false)
+  const config  = DIFFICULTY_CONFIGS.find(d => d.id === difficulty)!
+
   useEffect(() => {
     if (game.won && !prevWon.current) {
       prevWon.current = true
-      setTimeout(() => onWin(game.moves), 600)
+      setTimeout(() => onWin(game.moves), 700)
     }
   }, [game.won, game.moves, onWin])
 
   const handleTubeClick = useCallback((id: number) => {
     setGame(prev => {
       if (prev.won) return prev
+      const tube = prev.tubes.find(t => t.id === id)!
 
       if (prev.selected === null) {
-        // Select only non-empty tubes
-        const tube = prev.tubes.find(t => t.id === id)!
-        if (tube.segments.length === 0) return prev
-        return { ...prev, selected: id }
+        return tube.segments.length === 0 ? prev : { ...prev, selected: id }
       }
+      if (prev.selected === id) return { ...prev, selected: null }
 
-      if (prev.selected === id) {
-        return { ...prev, selected: null }
-      }
-
-      // Try to pour
       const from = prev.tubes.find(t => t.id === prev.selected)!
-      const to   = prev.tubes.find(t => t.id === id)!
-      if (canPour(from, to)) {
-        return pour(prev, prev.selected, id)
-      }
-
-      // Reselect if new tube is non-empty
-      const tube = prev.tubes.find(t => t.id === id)!
-      if (tube.segments.length > 0) {
-        return { ...prev, selected: id }
-      }
+      if (canPour(from, tube)) return pour(prev, prev.selected, id)
+      if (tube.segments.length > 0) return { ...prev, selected: id }
       return { ...prev, selected: null }
     })
   }, [])
@@ -69,76 +61,76 @@ export default function GameBoard({ difficulty, onWin, onBack }: Props) {
     setGame(createGame(difficulty))
   }, [difficulty])
 
-  // Layout: determine tube size based on available space
+  // Layout
+  const HEADER  = 70
+  const HINT    = 38
+  const PAD     = 20
+  const GAP     = 10
+  const ROW_GAP = 24
+
   const tubeCount = game.tubes.length
-  const cols = tubeCount <= 6 ? Math.ceil(tubeCount / 2) : Math.ceil(tubeCount / 2)
-  const rows = 2
-  const padding = 48
-  const gap = 14
-  const headerH = 80
+  const half  = Math.ceil(tubeCount / 2)
+  const row1  = game.tubes.slice(0, half)
+  const row2  = game.tubes.slice(half)
+  const cols  = half
 
-  const maxTubeW = Math.floor((w - padding * 2 - gap * (cols - 1)) / cols)
-  const maxTubeH = Math.floor((h - padding * 2 - headerH - gap * (rows - 1) - 40) / rows)
-  const tubeByWidth  = Math.min(maxTubeW, 80)
-  const tubeByHeight = Math.floor(maxTubeH / TUBE_ASPECT)
-  const tubeWidth  = Math.min(tubeByWidth, tubeByHeight, 72)
+  const availW   = w - PAD * 2
+  const availH   = h - HEADER - HINT - PAD * 2 - ROW_GAP - 48 // 48 for paw badges
+  const byWidth  = Math.floor((availW - GAP * (cols - 1)) / cols)
+  const byHeight = Math.floor(availH / 2 / TUBE_ASPECT)
+  const tubeWidth  = Math.min(byWidth, byHeight, 80)
   const tubeHeight = Math.floor(tubeWidth * TUBE_ASPECT)
-
-  // Split into two rows
-  const half = Math.ceil(tubeCount / 2)
-  const row1 = game.tubes.slice(0, half)
-  const row2 = game.tubes.slice(half)
 
   return (
     <div style={{
+      width: '100%',
+      height: '100%',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      height: '100%',
-      width: '100%',
-      padding: `${padding / 2}px ${padding}px`,
-      gap: 0,
+      padding: `${PAD}px`,
+      overflow: 'hidden',
     }}>
       {/* Header */}
       <div style={{
         display: 'flex',
         width: '100%',
+        maxWidth: 960,
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: headerH,
+        height: HEADER,
         flexShrink: 0,
       }}>
-        <button onClick={onBack} style={btnStyle('ghost')}>← Menu</button>
+        <button onClick={onBack} style={hdrBtn}>← Menu</button>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: 1 }}>
-            Magic Sort
+          <div style={{ color: '#fff', fontSize: 19, fontWeight: 800 }}>
+            {config.icon} {config.label}
           </div>
-          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 2 }}>
-            {difficulty.toUpperCase()} · {game.moves} moves
+          <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, marginTop: 2, letterSpacing: 1.5 }}>
+            {game.moves} MOVES
           </div>
         </div>
-        <button onClick={restart} style={btnStyle('ghost')}>Restart</button>
+        <button onClick={restart} style={hdrBtn}>↺ New</button>
       </div>
 
-      {/* Tube rows */}
+      {/* Tube area */}
       <div style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: gap + 24,
+        gap: ROW_GAP,
+        width: '100%',
       }}>
         {[row1, row2].map((row, ri) => (
-          <div key={ri} style={{ display: 'flex', gap, alignItems: 'flex-end' }}>
+          <div key={ri} style={{ display: 'flex', gap: GAP, alignItems: 'flex-end', justifyContent: 'center' }}>
             {row.map(tube => {
               const isSelected = game.selected === tube.id
-              const canReceive = game.selected !== null &&
-                game.selected !== tube.id &&
-                (() => {
-                  const from = game.tubes.find(t => t.id === game.selected)!
-                  return canPour(from, tube)
-                })()
+              const fromTube   = game.selected !== null
+                ? game.tubes.find(t => t.id === game.selected)
+                : undefined
+              const canReceive = !!fromTube && game.selected !== tube.id && canPour(fromTube, tube)
               return (
                 <TubeComponent
                   key={tube.id}
@@ -157,31 +149,35 @@ export default function GameBoard({ difficulty, onWin, onBack }: Props) {
 
       {/* Hint */}
       <div style={{
-        height: 40,
+        height: HINT,
         display: 'flex',
         alignItems: 'center',
-        color: 'rgba(255,255,255,0.3)',
+        justifyContent: 'center',
+        color: 'rgba(255,255,255,0.28)',
         fontSize: 13,
+        gap: 6,
         flexShrink: 0,
+        letterSpacing: 0.3,
       }}>
         {game.selected !== null
-          ? 'Tap a tube to pour into it'
-          : 'Tap a tube to select it'}
+          ? <><span>🐾</span><span>Tap another tube to pour</span></>
+          : <><span>🐕</span><span>Tap a tube to pick it up</span></>
+        }
       </div>
     </div>
   )
 }
 
-function btnStyle(variant: 'ghost' | 'primary'): React.CSSProperties {
-  return {
-    background: variant === 'primary' ? 'rgba(255,255,255,0.2)' : 'transparent',
-    border: '1px solid rgba(255,255,255,0.2)',
-    color: '#fff',
-    padding: '8px 16px',
-    borderRadius: 10,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    letterSpacing: 0.5,
-  }
+const hdrBtn: CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  color: 'rgba(255,255,255,0.75)',
+  padding: '8px 16px',
+  borderRadius: 10,
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  letterSpacing: 0.3,
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
 }
