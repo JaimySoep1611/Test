@@ -3,8 +3,9 @@ import type { CSSProperties } from 'react'
 import type { Difficulty } from './types'
 import { DIFFICULTY_CONFIGS, starsForMoves } from './gameLogic'
 import GameBoard from './components/GameBoard'
+import QueensBoard from './components/QueensBoard'
 
-type Screen = 'menu' | 'game' | 'win'
+type Screen = 'menu' | 'game' | 'win' | 'queens'
 
 const BG_DOGS = ['🐶', '🐕', '🦮', '🐩', '🐾', '🦴', '🐕‍🦺', '🐶', '🐾', '🦴']
 
@@ -62,10 +63,14 @@ export default function App() {
         </div>
       ))}
 
-      {screen === 'menu' && <Menu onStart={startGame} />}
+      {screen === 'menu' && <Menu onStart={startGame} onStartQueens={() => setScreen('queens')} />}
 
       {screen === 'game' && (
         <GameBoard difficulty={diff} onWin={handleWin} onBack={() => setScreen('menu')} />
+      )}
+
+      {screen === 'queens' && (
+        <QueensBoard onBack={() => setScreen('menu')} />
       )}
 
       {screen === 'win' && (
@@ -88,13 +93,16 @@ export default function App() {
 
 // ─── Menu ────────────────────────────────────────────────────────────────────
 
-function Menu({ onStart }: { onStart: (d: Difficulty) => void }) {
+function Menu({ onStart, onStartQueens }: {
+  onStart: (d: Difficulty) => void
+  onStartQueens: () => void
+}) {
   return (
     <div className="slide-up" style={{
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: 28,
+      gap: 22,
       zIndex: 1,
       width: '100%',
       maxWidth: 420,
@@ -106,7 +114,7 @@ function Menu({ onStart }: { onStart: (d: Difficulty) => void }) {
           src={`${import.meta.env.BASE_URL}logo.svg`}
           alt="Magic Sort"
           className="glow-pulse"
-          style={{ width: 110, height: 110, borderRadius: 26, marginBottom: 12, display: 'block', margin: '0 auto 12px' }}
+          style={{ width: 110, height: 110, borderRadius: 26, display: 'block', margin: '0 auto 12px' }}
         />
         <h1 style={{
           fontSize: 50,
@@ -126,7 +134,44 @@ function Menu({ onStart }: { onStart: (d: Difficulty) => void }) {
         </p>
       </div>
 
-      {/* Difficulty cards */}
+      {/* Queens special game */}
+      <button
+        onClick={onStartQueens}
+        style={{
+          background: 'linear-gradient(135deg,rgba(255,214,10,0.14) 0%,rgba(191,90,242,0.14) 100%)',
+          border: '1px solid rgba(255,214,10,0.35)',
+          borderRadius: 16,
+          padding: '14px 18px',
+          color: '#fff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          fontSize: 16,
+          fontWeight: 600,
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          textAlign: 'left',
+          width: '100%',
+        }}
+      >
+        <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>👑</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ lineHeight: 1.2 }}>Queens</div>
+          <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
+            One crown per row, column &amp; color region · 8×8
+          </div>
+        </div>
+        <span style={{ color: 'rgba(255,214,10,0.5)', fontSize: 20, fontWeight: 300 }}>›</span>
+      </button>
+
+      {/* Divider */}
+      <div style={{
+        width: '100%', height: 1,
+        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+      }} />
+
+      {/* Magic Sort difficulty cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
         {DIFFICULTY_CONFIGS.map((d, i) => (
           <button
