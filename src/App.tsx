@@ -102,9 +102,12 @@ function Menu({ onStart }: { onStart: (d: Difficulty) => void }) {
     }}>
       {/* Logo */}
       <div style={{ textAlign: 'center' }}>
-        <div className="glow-pulse" style={{ fontSize: 76, lineHeight: 1, marginBottom: 10 }}>
-          🐕
-        </div>
+        <img
+          src={`${import.meta.env.BASE_URL}logo.svg`}
+          alt="Magic Sort"
+          className="glow-pulse"
+          style={{ width: 110, height: 110, borderRadius: 26, marginBottom: 12, display: 'block', margin: '0 auto 12px' }}
+        />
         <h1 style={{
           fontSize: 50,
           fontWeight: 900,
