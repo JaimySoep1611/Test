@@ -155,11 +155,11 @@ function Menu({ onStart, onStartQueens }: {
           width: '100%',
         }}
       >
-        <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>👑</span>
+        <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🐾</span>
         <div style={{ flex: 1 }}>
-          <div style={{ lineHeight: 1.2 }}>Queens</div>
+          <div style={{ lineHeight: 1.2 }}>Dog Park</div>
           <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
-            One crown per row, column &amp; color region · 8×8
+            Place one dog per row, column &amp; zone · 3 difficulties
           </div>
         </div>
         <span style={{ color: 'rgba(255,214,10,0.5)', fontSize: 20, fontWeight: 300 }}>›</span>

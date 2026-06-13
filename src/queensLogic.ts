@@ -1,4 +1,18 @@
-export type CellValue = 0 | 1 | 2  // empty · crown · x-marker
+export type CellValue = 0 | 1 | 2  // empty · dog · bone-marker
+
+export interface DogDifficulty {
+  id: string
+  label: string
+  icon: string
+  n: number
+  desc: string
+}
+
+export const DOG_DIFFICULTIES: DogDifficulty[] = [
+  { id: 'puppy', label: 'Puppy', icon: '🐶', n: 6,  desc: '6×6 · 6 zones'    },
+  { id: 'woof',  label: 'Woof',  icon: '🐕', n: 8,  desc: '8×8 · 8 zones'    },
+  { id: 'fetch', label: 'Fetch', icon: '🦮', n: 10, desc: '10×10 · 10 zones'  },
+]
 
 export interface QueensPuzzle {
   n: number
