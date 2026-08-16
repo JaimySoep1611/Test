@@ -3,8 +3,9 @@ import type { CSSProperties } from 'react'
 import type { Difficulty } from './types'
 import { DIFFICULTY_CONFIGS, starsForMoves } from './gameLogic'
 import GameBoard from './components/GameBoard'
+import MurdokuBoard from './components/MurdokuBoard'
 
-type Screen = 'menu' | 'game' | 'win'
+type Screen = 'menu' | 'game' | 'win' | 'murdoku'
 
 const BG_DOGS = ['🐶', '🐕', '🦮', '🐩', '🐾', '🦴', '🐕‍🦺', '🐶', '🐾', '🦴']
 
@@ -62,7 +63,9 @@ export default function App() {
         </div>
       ))}
 
-      {screen === 'menu' && <Menu onStart={startGame} />}
+      {screen === 'menu' && <Menu onStart={startGame} onMurdoku={() => setScreen('murdoku')} />}
+
+      {screen === 'murdoku' && <MurdokuBoard onBack={() => setScreen('menu')} />}
 
       {screen === 'game' && (
         <GameBoard difficulty={diff} onWin={handleWin} onBack={() => setScreen('menu')} />
@@ -88,7 +91,7 @@ export default function App() {
 
 // ─── Menu ────────────────────────────────────────────────────────────────────
 
-function Menu({ onStart }: { onStart: (d: Difficulty) => void }) {
+function Menu({ onStart, onMurdoku }: { onStart: (d: Difficulty) => void; onMurdoku: () => void }) {
   return (
     <div className="slide-up" style={{
       display: 'flex',
@@ -159,6 +162,37 @@ function Menu({ onStart }: { onStart: (d: Difficulty) => void }) {
           </button>
         ))}
       </div>
+
+      {/* Murdoku button */}
+      <button
+        onClick={onMurdoku}
+        style={{
+          background: 'rgba(30,15,5,0.7)',
+          border: '1px solid rgba(212,160,23,0.45)',
+          borderRadius: 16,
+          padding: '13px 18px',
+          color: '#fff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          fontSize: 16,
+          fontWeight: 600,
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          textAlign: 'left',
+          width: '100%',
+        }}
+      >
+        <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🔍</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ lineHeight: 1.2, color: '#f0c840' }}>Murdoku</div>
+          <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
+            10 cases · arithmetic mystery
+          </div>
+        </div>
+        <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 20, fontWeight: 300 }}>›</span>
+      </button>
 
       <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: 12, letterSpacing: 0.5 }}>
         Sort all tubes by color to win 🐾
