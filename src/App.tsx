@@ -3,9 +3,10 @@ import type { CSSProperties } from 'react'
 import type { Difficulty } from './types'
 import { DIFFICULTY_CONFIGS, starsForMoves } from './gameLogic'
 import GameBoard from './components/GameBoard'
+import QueensBoard from './components/QueensBoard'
 import MurdokuBoard from './components/MurdokuBoard'
 
-type Screen = 'menu' | 'game' | 'win' | 'murdoku'
+type Screen = 'menu' | 'game' | 'win' | 'queens' | 'murdoku'
 
 const BG_DOGS = ['🐶', '🐕', '🦮', '🐩', '🐾', '🦴', '🐕‍🦺', '🐶', '🐾', '🦴']
 
@@ -63,7 +64,15 @@ export default function App() {
         </div>
       ))}
 
-      {screen === 'menu' && <Menu onStart={startGame} onMurdoku={() => setScreen('murdoku')} />}
+      {screen === 'menu' && (
+        <Menu
+          onStart={startGame}
+          onStartQueens={() => setScreen('queens')}
+          onMurdoku={() => setScreen('murdoku')}
+        />
+      )}
+
+      {screen === 'queens' && <QueensBoard onBack={() => setScreen('menu')} />}
 
       {screen === 'murdoku' && <MurdokuBoard onBack={() => setScreen('menu')} />}
 
@@ -91,13 +100,17 @@ export default function App() {
 
 // ─── Menu ────────────────────────────────────────────────────────────────────
 
-function Menu({ onStart, onMurdoku }: { onStart: (d: Difficulty) => void; onMurdoku: () => void }) {
+function Menu({ onStart, onStartQueens, onMurdoku }: {
+  onStart: (d: Difficulty) => void
+  onStartQueens: () => void
+  onMurdoku: () => void
+}) {
   return (
     <div className="slide-up" style={{
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: 28,
+      gap: 22,
       zIndex: 1,
       width: '100%',
       maxWidth: 420,
@@ -105,9 +118,12 @@ function Menu({ onStart, onMurdoku }: { onStart: (d: Difficulty) => void; onMurd
     }}>
       {/* Logo */}
       <div style={{ textAlign: 'center' }}>
-        <div className="glow-pulse" style={{ fontSize: 76, lineHeight: 1, marginBottom: 10 }}>
-          🐕
-        </div>
+        <img
+          src={`${import.meta.env.BASE_URL}logo.svg`}
+          alt="Magic Sort"
+          className="glow-pulse"
+          style={{ width: 110, height: 110, borderRadius: 26, display: 'block', margin: '0 auto 12px' }}
+        />
         <h1 style={{
           fontSize: 50,
           fontWeight: 900,
@@ -126,7 +142,76 @@ function Menu({ onStart, onMurdoku }: { onStart: (d: Difficulty) => void; onMurd
         </p>
       </div>
 
-      {/* Difficulty cards */}
+      {/* Special games */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
+        <button
+          onClick={onStartQueens}
+          style={{
+            background: 'linear-gradient(135deg,rgba(255,214,10,0.14) 0%,rgba(191,90,242,0.14) 100%)',
+            border: '1px solid rgba(255,214,10,0.35)',
+            borderRadius: 16,
+            padding: '14px 18px',
+            color: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            fontSize: 16,
+            fontWeight: 600,
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            textAlign: 'left',
+            width: '100%',
+          }}
+        >
+          <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🐾</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ lineHeight: 1.2 }}>Dog Park</div>
+            <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
+              Place one dog per row, column &amp; zone · 3 difficulties
+            </div>
+          </div>
+          <span style={{ color: 'rgba(255,214,10,0.5)', fontSize: 20, fontWeight: 300 }}>›</span>
+        </button>
+
+        <button
+          onClick={onMurdoku}
+          style={{
+            background: 'rgba(30,15,5,0.7)',
+            border: '1px solid rgba(212,160,23,0.45)',
+            borderRadius: 16,
+            padding: '14px 18px',
+            color: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            fontSize: 16,
+            fontWeight: 600,
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            textAlign: 'left',
+            width: '100%',
+          }}
+        >
+          <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🔍</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ lineHeight: 1.2, color: '#f0c840' }}>Murdoku</div>
+            <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
+              10 cases · arithmetic mystery
+            </div>
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 20, fontWeight: 300 }}>›</span>
+        </button>
+      </div>
+
+      {/* Divider */}
+      <div style={{
+        width: '100%', height: 1,
+        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+      }} />
+
+      {/* Magic Sort difficulty cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
         {DIFFICULTY_CONFIGS.map((d, i) => (
           <button
@@ -162,37 +247,6 @@ function Menu({ onStart, onMurdoku }: { onStart: (d: Difficulty) => void; onMurd
           </button>
         ))}
       </div>
-
-      {/* Murdoku button */}
-      <button
-        onClick={onMurdoku}
-        style={{
-          background: 'rgba(30,15,5,0.7)',
-          border: '1px solid rgba(212,160,23,0.45)',
-          borderRadius: 16,
-          padding: '13px 18px',
-          color: '#fff',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          fontSize: 16,
-          fontWeight: 600,
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          textAlign: 'left',
-          width: '100%',
-        }}
-      >
-        <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🔍</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ lineHeight: 1.2, color: '#f0c840' }}>Murdoku</div>
-          <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
-            10 cases · arithmetic mystery
-          </div>
-        </div>
-        <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 20, fontWeight: 300 }}>›</span>
-      </button>
 
       <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: 12, letterSpacing: 0.5 }}>
         Sort all tubes by color to win 🐾

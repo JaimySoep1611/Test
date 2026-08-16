@@ -35,7 +35,7 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          VITE_BASE_PATH: /test/
+          VITE_BASE_PATH: /Test/
 
       - uses: actions/configure-pages@v5
 
