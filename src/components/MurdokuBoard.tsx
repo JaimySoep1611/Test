@@ -7,10 +7,9 @@ import {
   enterNumber,
   getConflicts,
   buildCageIndex,
-  cageLabel,
   isFirstCell,
 } from '../murdokuLogic'
-import type { MurdokuState } from '../murdokuLogic'
+import type { MurdokuState, Cage } from '../murdokuLogic'
 
 // ─── Suspects — the "people" shown in cells ───────────────────────────────────
 const SUSPECTS = [
@@ -52,6 +51,13 @@ function reducer(
   }
 }
 
+// Human-readable room clue: "+ = 13" instead of "13+"
+function cellArith(cage: Cage): string {
+  if (cage.op === 'given') return ''
+  const sym = cage.op === '*' ? '×' : cage.op === '/' ? '÷' : cage.op
+  return `${sym} = ${cage.target}`
+}
+
 export default function MurdokuBoard({ onBack }: Props) {
   const [{ game, levelIdx }, dispatch] = useReducer(reducer, undefined, () => ({
     game: createMurdokuGame(MURDOKU_PUZZLES[0]),
@@ -67,9 +73,26 @@ export default function MurdokuBoard({ onBack }: Props) {
   const cellSize = useMemo(() => {
     const vw = typeof window !== 'undefined' ? window.innerWidth  : 400
     const vh = typeof window !== 'undefined' ? window.innerHeight : 700
-    const avail = Math.min(vw - 28, vh - 310)
+    const avail = Math.min(vw - 28, vh - 360)
     return Math.max(Math.min(Math.floor(avail / n), 76), 36)
   }, [n])
+
+  // Where is each suspect right now?
+  const suspectLocations = useMemo(() => {
+    const locs = new Map<number, string[]>()
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        const val = game.grid[r][c]
+        if (val !== null) {
+          const ci = cageIdx[r][c]
+          const room = ROOMS[ci % ROOMS.length]
+          const prev = locs.get(val) ?? []
+          if (!prev.includes(room)) locs.set(val, [...prev, room])
+        }
+      }
+    }
+    return locs
+  }, [game.grid, cageIdx, n])
 
   const handleKey = useCallback((e: KeyboardEvent) => {
     const v = parseInt(e.key)
@@ -94,7 +117,7 @@ export default function MurdokuBoard({ onBack }: Props) {
       height: '100%',
       background: 'linear-gradient(160deg,#183518 0%,#0d200c 55%,#1a3018 100%)',
       padding: '10px 10px 12px',
-      gap: 8,
+      gap: 7,
       overflow: 'hidden',
       position: 'relative',
     }}>
@@ -157,7 +180,7 @@ export default function MurdokuBoard({ onBack }: Props) {
             const sel     = game.selected?.[0] === r && game.selected?.[1] === c
             const conf    = conflicts.has(key)
             const showLbl = isFirstCell(cage, r, c)
-            const arith   = showLbl ? cageLabel(cage) : ''
+            const arith   = showLbl ? cellArith(cage) : ''
             const room    = showLbl ? ROOMS[ci % ROOMS.length] : ''
 
             const suspect = val !== null ? suspects[val - 1] : null
@@ -167,7 +190,6 @@ export default function MurdokuBoard({ onBack }: Props) {
             const bBot   = r === n-1 || cageIdx[r+1][c] !== ci ? WALL  : GROUT
             const bLeft  = c === 0   || cageIdx[r][c-1] !== ci ? WALL  : GROUT
 
-            // Cell background: suspect tint if filled, else warm tile
             let bg = given ? '#c8a870' : '#f0dfc0'
             if (suspect && !sel && !conf) bg = suspect.bg
             if (given && suspect)         bg = suspect.bg
@@ -193,7 +215,7 @@ export default function MurdokuBoard({ onBack }: Props) {
                   overflow: 'hidden',
                 }}
               >
-                {/* Room name + arithmetic label */}
+                {/* Room name + clue label */}
                 {(room || arith) && (
                   <div style={{
                     position: 'absolute',
@@ -248,9 +270,40 @@ export default function MurdokuBoard({ onBack }: Props) {
         )}
       </div>
 
-      {/* ── Instruction ── */}
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.32)', textAlign: 'center', letterSpacing: 0.3 }}>
-        Each row, column &amp; room must contain each suspect once · Match the room's total
+      {/* ── How-to strip ── */}
+      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'center', lineHeight: 1.55, maxWidth: 360 }}>
+        Each row, column &amp; room must have each suspect exactly once.
+        {' '}<span style={{ color: 'rgba(255,210,100,0.7)' }}>
+          Room clue "+ = 13" means their numbers (Scarlet=1, Mustard=2…) must <em>add</em> up to 13.
+          "× = 12" means they <em>multiply</em> to 12.
+        </span>
+      </div>
+
+      {/* ── Location tracker: where is each suspect right now? ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', maxWidth: 420 }}>
+        {suspects.map((s, i) => {
+          const rooms = suspectLocations.get(i + 1) ?? []
+          return (
+            <div
+              key={i}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: rooms.length ? s.bg : 'rgba(255,255,255,0.05)',
+                border: `1.5px solid ${rooms.length ? s.color : 'rgba(255,255,255,0.12)'}`,
+                borderRadius: 8, padding: '3px 7px',
+                color: rooms.length ? s.color : 'rgba(255,255,255,0.28)',
+                fontWeight: 700,
+                transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 13 }}>{s.emoji}</span>
+              <span style={{ fontSize: 10 }}>{s.short}</span>
+              <span style={{ fontSize: 9, fontWeight: 400, opacity: 0.75 }}>
+                {rooms.length ? `→ ${rooms.join(', ')}` : '(not placed)'}
+              </span>
+            </div>
+          )
+        })}
       </div>
 
       {/* ── Suspect pad ── */}
@@ -271,8 +324,16 @@ export default function MurdokuBoard({ onBack }: Props) {
               background: s.bg,
               cursor: 'pointer',
               boxShadow: '0 3px 0 rgba(0,0,0,0.45)',
+              position: 'relative',
             }}
           >
+            {/* Suspect number badge */}
+            <span style={{
+              position: 'absolute', top: 2, left: 3,
+              fontSize: 8, fontWeight: 900,
+              background: s.color, color: '#fff',
+              borderRadius: 3, padding: '1px 3px', lineHeight: 1,
+            }}>{i + 1}</span>
             <span style={{ fontSize: 26, lineHeight: 1 }}>{s.emoji}</span>
             <span style={{ fontSize: 9, fontWeight: 800, color: s.color, lineHeight: 1, textAlign: 'center' }}>
               {s.short}
