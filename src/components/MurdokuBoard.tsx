@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useReducer } from 'react'
 import type { CSSProperties } from 'react'
 import { MURDOKU_PUZZLES } from '../murdokuData'
 import {
@@ -12,9 +12,11 @@ import {
 } from '../murdokuLogic'
 import type { MurdokuState } from '../murdokuLogic'
 
-const CAGE_BORDER  = '2.5px solid #c8901a'
-const INNER_BORDER = '0.5px solid rgba(180,120,60,0.22)'
-const OUTER_BORDER = '2.5px solid #c8901a'
+// ─── Cage palette — alternating warm floor tones so adjacent cages read apart ─
+const CAGE_BG = ['#f0dfc0', '#e4d0a8', '#f5e8d0', '#dfd0b0', '#eee0c4', '#e8d6b0']
+
+const WALL  = '3px solid #2a1205'
+const GROUT = '0.5px solid rgba(42,18,5,0.2)'
 
 interface Props { onBack: () => void }
 
@@ -23,44 +25,42 @@ type Action =
   | { type: 'enter'; value: number | null }
   | { type: 'level'; idx: number }
 
-function reducer(state: { game: MurdokuState; levelIdx: number }, action: Action) {
+function reducer(
+  state: { game: MurdokuState; levelIdx: number },
+  action: Action,
+) {
   switch (action.type) {
-    case 'select':
-      return { ...state, game: selectCell(state.game, action.r, action.c) }
-    case 'enter':
-      return { ...state, game: enterNumber(state.game, action.value) }
+    case 'select': return { ...state, game: selectCell(state.game, action.r, action.c) }
+    case 'enter':  return { ...state, game: enterNumber(state.game, action.value) }
     case 'level': {
-      const puzzle = MURDOKU_PUZZLES[action.idx]
-      return { game: createMurdokuGame(puzzle), levelIdx: action.idx }
+      return { game: createMurdokuGame(MURDOKU_PUZZLES[action.idx]), levelIdx: action.idx }
     }
     default: return state
   }
 }
 
 export default function MurdokuBoard({ onBack }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-
   const [{ game, levelIdx }, dispatch] = useReducer(reducer, undefined, () => ({
     game: createMurdokuGame(MURDOKU_PUZZLES[0]),
     levelIdx: 0,
   }))
 
-  const puzzle  = game.puzzle
-  const n       = puzzle.size
-  const cageIdx = useMemo(() => buildCageIndex(puzzle), [puzzle])
+  const puzzle    = game.puzzle
+  const n         = puzzle.size
+  const cageIdx   = useMemo(() => buildCageIndex(puzzle), [puzzle])
   const conflicts = useMemo(() => getConflicts(game), [game])
 
   const cellSize = useMemo(() => {
     const vw = typeof window !== 'undefined' ? window.innerWidth  : 400
     const vh = typeof window !== 'undefined' ? window.innerHeight : 700
-    const available = Math.min(vw - 32, vh - 220)
-    return Math.max(Math.min(Math.floor(available / n), 80), 30)
+    const avail = Math.min(vw - 28, vh - 270)
+    return Math.max(Math.min(Math.floor(avail / n), 74), 34)
   }, [n])
 
   const handleKey = useCallback((e: KeyboardEvent) => {
     const v = parseInt(e.key)
     if (!isNaN(v) && v >= 1 && v <= n) dispatch({ type: 'enter', value: v })
-    if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0')
+    if (e.key === 'Backspace' || e.key === '0' || e.key === 'Delete')
       dispatch({ type: 'enter', value: null })
   }, [n])
 
@@ -69,8 +69,7 @@ export default function MurdokuBoard({ onBack }: Props) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [handleKey])
 
-  const puzzle_name = puzzle.name
-  const won = game.won
+  const gridPx = cellSize * n
 
   return (
     <div style={{
@@ -79,308 +78,292 @@ export default function MurdokuBoard({ onBack }: Props) {
       alignItems: 'center',
       width: '100%',
       height: '100%',
-      padding: '12px 8px 16px',
-      gap: 10,
-      position: 'relative',
+      background: 'linear-gradient(160deg,#183518 0%,#0d200c 55%,#1a3018 100%)',
+      padding: '10px 10px 14px',
+      gap: 9,
       overflow: 'hidden',
+      position: 'relative',
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: 540, gap: 10 }}>
-        <button onClick={onBack} style={backBtnStyle}>‹ Back</button>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: 520, gap: 8 }}>
+        <button onClick={onBack} style={backBtn}>‹ Back</button>
+
         <div style={{ flex: 1, textAlign: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#d4a017', letterSpacing: 1 }}>
-            🔍 {puzzle_name}
-          </span>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 8 }}>
-            {puzzle.subtitle}
-          </span>
+          {/* Blood-drip title */}
+          <div style={{
+            fontSize: 24,
+            fontWeight: 900,
+            letterSpacing: 5,
+            textTransform: 'uppercase',
+            color: '#fff',
+            textShadow: '3px 3px 0 #7a0000, 0 0 24px rgba(180,0,0,0.55)',
+            lineHeight: 1,
+          }}>
+            🔍 MURDOKU
+          </div>
+          <div style={{
+            fontSize: 10,
+            color: 'rgba(255,255,255,0.42)',
+            marginTop: 3,
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+          }}>
+            {puzzle.name} · {puzzle.subtitle}
+          </div>
         </div>
+
         <div style={{ width: 56 }} />
       </div>
 
-      {/* Level selector */}
-      <div style={{
-        display: 'flex',
-        gap: 5,
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        maxWidth: 400,
-      }}>
-        {MURDOKU_PUZZLES.map((p, i) => (
-          <button
-            key={i}
-            onClick={() => dispatch({ type: 'level', idx: i })}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              border: i === levelIdx ? '2px solid #d4a017' : '1.5px solid rgba(255,255,255,0.18)',
-              background: i === levelIdx
-                ? 'rgba(212,160,23,0.22)'
-                : 'rgba(255,255,255,0.06)',
-              color: i === levelIdx ? '#f0c840' : 'rgba(255,255,255,0.5)',
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            {i + 1}
-          </button>
-        ))}
+      {/* ── Case-file level selector ── */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 380 }}>
+        {MURDOKU_PUZZLES.map((_, i) => {
+          const active = i === levelIdx
+          return (
+            <button
+              key={i}
+              onClick={() => dispatch({ type: 'level', idx: i })}
+              style={{
+                width: 30,
+                height: 26,
+                borderRadius: 5,
+                border: active ? '2px solid #cc1111' : '1.5px solid rgba(255,255,255,0.15)',
+                background: active ? 'rgba(160,0,0,0.4)' : 'rgba(255,255,255,0.055)',
+                color: active ? '#ffaaaa' : 'rgba(255,255,255,0.38)',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.12s',
+              }}
+            >
+              {i + 1}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Grid */}
-      <Grid
-        game={game}
-        n={n}
-        cageIdx={cageIdx}
-        conflicts={conflicts}
-        cellSize={cellSize}
-        dispatch={dispatch}
-      />
-
-      {/* Number pad */}
+      {/* ── Floor-plan grid ── */}
       <div style={{
-        display: 'flex',
-        gap: 6,
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        maxWidth: 420,
+        position: 'relative',
+        width: gridPx,
+        height: gridPx,
+        border: '4px solid #2a1205',
+        borderRadius: 5,
+        overflow: 'hidden',
+        flexShrink: 0,
+        boxShadow:
+          '0 16px 48px rgba(0,0,0,0.75), ' +
+          '0 0 0 1px rgba(0,0,0,0.6), ' +
+          'inset 0 0 0 1px rgba(255,220,160,0.08)',
       }}>
+        {Array.from({ length: n }, (_, r) =>
+          Array.from({ length: n }, (_, c) => {
+            const key   = `${r},${c}`
+            const val   = game.grid[r][c]
+            const ci    = cageIdx[r][c]
+            const cage  = puzzle.cages[ci]
+            const given = game.givenCells.has(key)
+            const sel   = game.selected?.[0] === r && game.selected?.[1] === c
+            const conf  = conflicts.has(key)
+            const lbl   = isFirstCell(cage, r, c) ? cageLabel(cage) : ''
+
+            const bTop   = r === 0   || cageIdx[r-1][c] !== ci ? WALL  : GROUT
+            const bRight = c === n-1 || cageIdx[r][c+1] !== ci ? WALL  : GROUT
+            const bBot   = r === n-1 || cageIdx[r+1][c] !== ci ? WALL  : GROUT
+            const bLeft  = c === 0   || cageIdx[r][c-1] !== ci ? WALL  : GROUT
+
+            // Base tile color per cage index (floor-plan room feel)
+            let bg = given
+              ? '#c8a870'                    // darker tan for givens
+              : CAGE_BG[ci % CAGE_BG.length] // rotating warm tones
+
+            if (sel)  bg = '#ffe566'         // spotlight yellow
+            if (conf) bg = '#f09898'         // blood blush
+
+            return (
+              <div
+                key={key}
+                onClick={() => dispatch({ type: 'select', r, c })}
+                style={{
+                  position: 'absolute',
+                  top:  r * cellSize,
+                  left: c * cellSize,
+                  width: cellSize,
+                  height: cellSize,
+                  background: bg,
+                  borderTop: bTop,
+                  borderRight: bRight,
+                  borderBottom: bBot,
+                  borderLeft: bLeft,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: given ? 'default' : 'pointer',
+                  userSelect: 'none',
+                  transition: 'background 0.1s',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {/* Cage arithmetic label */}
+                {lbl && (
+                  <span style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: 3,
+                    fontSize: Math.max(cellSize * 0.23, 9),
+                    fontWeight: 800,
+                    color: '#7a0000',
+                    lineHeight: 1,
+                    pointerEvents: 'none',
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: -0.5,
+                  }}>
+                    {lbl}
+                  </span>
+                )}
+
+                {/* Cell number */}
+                {val !== null && (
+                  <span style={{
+                    fontSize: Math.max(cellSize * 0.48, 16),
+                    fontWeight: 900,
+                    color: conf ? '#7a0000' : given ? '#1e0900' : '#2a1000',
+                    lineHeight: 1,
+                    letterSpacing: -1,
+                  }}>
+                    {val}
+                  </span>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* ── How-to-play hint ── */}
+      <div style={{
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.32)',
+        textAlign: 'center',
+        letterSpacing: 0.3,
+        lineHeight: 1.5,
+      }}>
+        Each row &amp; column must contain 1–{n} once · Cage label = its required total
+      </div>
+
+      {/* ── Number pad ── */}
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center' }}>
         {Array.from({ length: n }, (_, i) => i + 1).map(v => (
           <button
             key={v}
             onClick={() => dispatch({ type: 'enter', value: v })}
-            style={numBtnStyle}
+            style={padBtn}
           >
             {v}
           </button>
         ))}
         <button
           onClick={() => dispatch({ type: 'enter', value: null })}
-          style={{ ...numBtnStyle, color: '#ff6b6b', borderColor: 'rgba(255,100,100,0.3)' }}
+          style={{ ...padBtn, background: '#f09898', color: '#7a0000', borderColor: '#7a0000' }}
         >
           ✕
         </button>
       </div>
 
-      {/* Win overlay */}
-      {won && (
-        <WinOverlay
-          puzzle={puzzle}
-          moves={game.moves}
-          onNext={levelIdx < MURDOKU_PUZZLES.length - 1
-            ? () => dispatch({ type: 'level', idx: levelIdx + 1 })
-            : undefined}
-          onReplay={() => dispatch({ type: 'level', idx: levelIdx })}
-          onBack={onBack}
-        />
-      )}
-    </div>
-  )
-}
-
-// ─── Grid ─────────────────────────────────────────────────────────────────────
-
-interface GridProps {
-  game: MurdokuState
-  n: number
-  cageIdx: number[][]
-  conflicts: Set<string>
-  cellSize: number
-  dispatch: (a: Action) => void
-}
-
-function Grid({ game, n, cageIdx, conflicts, cellSize, dispatch }: GridProps) {
-  const { grid, selected, givenCells, puzzle } = game
-  const gridSize = cellSize * n
-
-  return (
-    <div
-      style={{
-        width: gridSize,
-        height: gridSize,
-        position: 'relative',
-        borderRadius: 6,
-        overflow: 'hidden',
-        flexShrink: 0,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 2px #c8901a',
-      }}
-    >
-      {Array.from({ length: n }, (_, r) =>
-        Array.from({ length: n }, (_, c) => {
-          const key = `${r},${c}`
-          const val = grid[r][c]
-          const cageI = cageIdx[r][c]
-          const cage  = puzzle.cages[cageI]
-          const isGiven   = givenCells.has(key)
-          const isSelected = selected?.[0] === r && selected?.[1] === c
-          const isConflict = conflicts.has(key)
-          const label = isFirstCell(cage, r, c) ? cageLabel(cage) : ''
-
-          const borderTop    = r === 0 || cageIdx[r-1][c] !== cageI ? OUTER_BORDER : INNER_BORDER
-          const borderRight  = c === n-1 || cageIdx[r][c+1] !== cageI ? CAGE_BORDER  : INNER_BORDER
-          const borderBottom = r === n-1 || cageIdx[r+1][c] !== cageI ? CAGE_BORDER  : INNER_BORDER
-          const borderLeft   = c === 0 || cageIdx[r][c-1] !== cageI ? OUTER_BORDER  : INNER_BORDER
-
-          const bg = isSelected
-            ? 'rgba(212,160,23,0.28)'
-            : isConflict
-            ? 'rgba(220,50,50,0.25)'
-            : isGiven
-            ? 'rgba(80,50,20,0.55)'
-            : 'rgba(20,10,5,0.7)'
-
-          return (
-            <div
-              key={key}
-              onClick={() => dispatch({ type: 'select', r, c })}
-              style={{
-                position: 'absolute',
-                top: r * cellSize,
-                left: c * cellSize,
-                width: cellSize,
-                height: cellSize,
-                background: bg,
-                borderTop,
-                borderRight,
-                borderBottom,
-                borderLeft,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: isGiven ? 'default' : 'pointer',
-                userSelect: 'none',
-                transition: 'background 0.12s',
-              }}
-            >
-              {label && (
-                <span style={{
-                  position: 'absolute',
-                  top: 2,
-                  left: 3,
-                  fontSize: Math.max(cellSize * 0.22, 8),
-                  fontWeight: 700,
-                  color: '#d4a017',
-                  lineHeight: 1,
-                  pointerEvents: 'none',
-                }}>
-                  {label}
-                </span>
-              )}
-              {val !== null && (
-                <span style={{
-                  fontSize: Math.max(cellSize * 0.48, 14),
-                  fontWeight: isGiven ? 800 : 600,
-                  color: isConflict
-                    ? '#ff6b6b'
-                    : isGiven
-                    ? '#f5d06a'
-                    : '#f0e8d0',
-                  lineHeight: 1,
-                }}>
-                  {val}
-                </span>
-              )}
-            </div>
-          )
-        })
-      )}
-    </div>
-  )
-}
-
-// ─── Win Overlay ──────────────────────────────────────────────────────────────
-
-import type { MurdokuPuzzle } from '../murdokuLogic'
-
-interface WinProps {
-  puzzle: MurdokuPuzzle
-  moves: number
-  onNext?: () => void
-  onReplay: () => void
-  onBack: () => void
-}
-
-function WinOverlay({ puzzle, moves, onNext, onReplay, onBack }: WinProps) {
-  return (
-    <div style={{
-      position: 'absolute',
-      inset: 0,
-      background: 'rgba(5,3,1,0.88)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 20,
-      zIndex: 10,
-      backdropFilter: 'blur(6px)',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 60, lineHeight: 1, marginBottom: 8 }}>🕵️</div>
-        <h2 style={{
-          fontSize: 34,
-          fontWeight: 900,
-          color: '#f0c840',
-          margin: 0,
-          letterSpacing: -1,
+      {/* ── Win overlay ── */}
+      {game.won && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(6,14,6,0.92)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 20,
+          zIndex: 10,
+          backdropFilter: 'blur(10px)',
         }}>
-          Case Solved!
-        </h2>
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginTop: 6 }}>
-          {puzzle.name} · {moves} moves
-        </p>
-      </div>
+          <div style={{ fontSize: 70, lineHeight: 1 }}>🕵️</div>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-        {onNext && (
-          <button onClick={onNext} style={overlayBtn('primary')}>Next Case →</button>
-        )}
-        <button onClick={onReplay} style={overlayBtn('ghost')}>Replay</button>
-        <button onClick={onBack}   style={overlayBtn('ghost')}>Menu</button>
-      </div>
+          <div style={{ textAlign: 'center' }}>
+            <h2 style={{
+              fontSize: 38,
+              fontWeight: 900,
+              color: '#f5c800',
+              margin: 0,
+              letterSpacing: 3,
+              textTransform: 'uppercase',
+              textShadow: '3px 3px 0 #8b0000, 0 0 30px rgba(220,100,0,0.5)',
+            }}>
+              Case Solved!
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginTop: 8 }}>
+              {puzzle.name} · {game.moves} moves
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {levelIdx < MURDOKU_PUZZLES.length - 1 && (
+              <button
+                onClick={() => dispatch({ type: 'level', idx: levelIdx + 1 })}
+                style={winBtn('primary')}
+              >
+                Next Case →
+              </button>
+            )}
+            <button onClick={() => dispatch({ type: 'level', idx: levelIdx })} style={winBtn('ghost')}>
+              Replay
+            </button>
+            <button onClick={onBack} style={winBtn('ghost')}>Menu</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Shared styles ────────────────────────────────────────────────────────────
 
-const backBtnStyle: CSSProperties = {
+const backBtn: CSSProperties = {
   background: 'rgba(255,255,255,0.07)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: 10,
-  padding: '6px 12px',
-  color: 'rgba(255,255,255,0.7)',
+  border: '1px solid rgba(255,255,255,0.13)',
+  borderRadius: 8,
+  padding: '6px 13px',
+  color: 'rgba(255,255,255,0.65)',
   fontSize: 13,
   cursor: 'pointer',
   flexShrink: 0,
 }
 
-const numBtnStyle: CSSProperties = {
-  width: 44,
-  height: 44,
-  borderRadius: 10,
-  border: '1.5px solid rgba(212,160,23,0.35)',
-  background: 'rgba(30,18,6,0.8)',
-  color: '#f0e8d0',
-  fontSize: 18,
-  fontWeight: 700,
+const padBtn: CSSProperties = {
+  width: 50,
+  height: 50,
+  borderRadius: 8,
+  border: '2.5px solid #2a1205',
+  background: '#f0dfc0',
+  color: '#1e0900',
+  fontSize: 21,
+  fontWeight: 900,
   cursor: 'pointer',
-  backdropFilter: 'blur(4px)',
+  boxShadow: '0 4px 0 rgba(0,0,0,0.5)',
+  transition: 'transform 0.07s',
+  letterSpacing: -1,
 }
 
-function overlayBtn(variant: 'primary' | 'ghost'): CSSProperties {
+function winBtn(v: 'primary' | 'ghost'): CSSProperties {
   return {
-    background: variant === 'primary'
-      ? 'linear-gradient(135deg,#b8750e,#d4a017)'
-      : 'rgba(255,255,255,0.08)',
-    border: `1px solid ${variant === 'primary' ? '#d4a017' : 'rgba(255,255,255,0.18)'}`,
+    background: v === 'primary'
+      ? 'linear-gradient(135deg,#8b0000,#c82000)'
+      : 'rgba(255,255,255,0.09)',
+    border: `1px solid ${v === 'primary' ? '#c82000' : 'rgba(255,255,255,0.18)'}`,
     borderRadius: 12,
-    padding: '12px 24px',
+    padding: '12px 26px',
     color: '#fff',
     fontSize: 15,
     fontWeight: 700,
     cursor: 'pointer',
+    letterSpacing: 0.3,
   }
 }
