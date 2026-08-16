@@ -4,8 +4,9 @@ import type { Difficulty } from './types'
 import { DIFFICULTY_CONFIGS, starsForMoves } from './gameLogic'
 import GameBoard from './components/GameBoard'
 import QueensBoard from './components/QueensBoard'
+import MurdokuBoard from './components/MurdokuBoard'
 
-type Screen = 'menu' | 'game' | 'win' | 'queens'
+type Screen = 'menu' | 'game' | 'win' | 'queens' | 'murdoku'
 
 const BG_DOGS = ['🐶', '🐕', '🦮', '🐩', '🐾', '🦴', '🐕‍🦺', '🐶', '🐾', '🦴']
 
@@ -63,14 +64,20 @@ export default function App() {
         </div>
       ))}
 
-      {screen === 'menu' && <Menu onStart={startGame} onStartQueens={() => setScreen('queens')} />}
+      {screen === 'menu' && (
+        <Menu
+          onStart={startGame}
+          onStartQueens={() => setScreen('queens')}
+          onMurdoku={() => setScreen('murdoku')}
+        />
+      )}
+
+      {screen === 'queens' && <QueensBoard onBack={() => setScreen('menu')} />}
+
+      {screen === 'murdoku' && <MurdokuBoard onBack={() => setScreen('menu')} />}
 
       {screen === 'game' && (
         <GameBoard difficulty={diff} onWin={handleWin} onBack={() => setScreen('menu')} />
-      )}
-
-      {screen === 'queens' && (
-        <QueensBoard onBack={() => setScreen('menu')} />
       )}
 
       {screen === 'win' && (
@@ -93,9 +100,10 @@ export default function App() {
 
 // ─── Menu ────────────────────────────────────────────────────────────────────
 
-function Menu({ onStart, onStartQueens }: {
+function Menu({ onStart, onStartQueens, onMurdoku }: {
   onStart: (d: Difficulty) => void
   onStartQueens: () => void
+  onMurdoku: () => void
 }) {
   return (
     <div className="slide-up" style={{
@@ -134,36 +142,68 @@ function Menu({ onStart, onStartQueens }: {
         </p>
       </div>
 
-      {/* Queens special game */}
-      <button
-        onClick={onStartQueens}
-        style={{
-          background: 'linear-gradient(135deg,rgba(255,214,10,0.14) 0%,rgba(191,90,242,0.14) 100%)',
-          border: '1px solid rgba(255,214,10,0.35)',
-          borderRadius: 16,
-          padding: '14px 18px',
-          color: '#fff',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          fontSize: 16,
-          fontWeight: 600,
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          textAlign: 'left',
-          width: '100%',
-        }}
-      >
-        <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🐾</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ lineHeight: 1.2 }}>Dog Park</div>
-          <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
-            Place one dog per row, column &amp; zone · 3 difficulties
+      {/* Special games */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
+        <button
+          onClick={onStartQueens}
+          style={{
+            background: 'linear-gradient(135deg,rgba(255,214,10,0.14) 0%,rgba(191,90,242,0.14) 100%)',
+            border: '1px solid rgba(255,214,10,0.35)',
+            borderRadius: 16,
+            padding: '14px 18px',
+            color: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            fontSize: 16,
+            fontWeight: 600,
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            textAlign: 'left',
+            width: '100%',
+          }}
+        >
+          <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🐾</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ lineHeight: 1.2 }}>Dog Park</div>
+            <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
+              Place one dog per row, column &amp; zone · 3 difficulties
+            </div>
           </div>
-        </div>
-        <span style={{ color: 'rgba(255,214,10,0.5)', fontSize: 20, fontWeight: 300 }}>›</span>
-      </button>
+          <span style={{ color: 'rgba(255,214,10,0.5)', fontSize: 20, fontWeight: 300 }}>›</span>
+        </button>
+
+        <button
+          onClick={onMurdoku}
+          style={{
+            background: 'rgba(30,15,5,0.7)',
+            border: '1px solid rgba(212,160,23,0.45)',
+            borderRadius: 16,
+            padding: '14px 18px',
+            color: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            fontSize: 16,
+            fontWeight: 600,
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            textAlign: 'left',
+            width: '100%',
+          }}
+        >
+          <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>🔍</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ lineHeight: 1.2, color: '#f0c840' }}>Murdoku</div>
+            <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: 400, marginTop: 3 }}>
+              10 cases · arithmetic mystery
+            </div>
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 20, fontWeight: 300 }}>›</span>
+        </button>
+      </div>
 
       {/* Divider */}
       <div style={{
